@@ -2,16 +2,17 @@
 #include <string>       
 #include <sys/types.h>
 #include <unistd.h>
+#include <filesystem>
 
-using namespace std;
+namespace fs = std::filesystem::current_path()
+using fs;
 
 class conchShell {
 private:
 
 public: 
-
     //Set the current shell greeting
-    string greeting = "$";
+    string greeting = fs::current_path() + "$";
     //Store the working command
     string command;
 
