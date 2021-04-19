@@ -2,6 +2,7 @@
 #include <string>       
 #include <sys/types.h>
 #include <unistd.h>
+#include <filesystem>
 
 using namespace std;
 
@@ -11,7 +12,7 @@ private:
 public: 
 
     //Set the current shell greeting
-    string greeting = "$";
+    string greeting = "$ ";
     //Store the working command
     string command;
 

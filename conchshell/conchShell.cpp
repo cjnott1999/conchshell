@@ -1,7 +1,9 @@
 #include "conchShell.h"
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <sys/wait.h>
+#include <stdio.h>
 
 
 using namespace std;
@@ -26,5 +28,17 @@ void conchShell::execute(){
 }
 
 void conchShell::parse_and_execute(string c){
-    cout << c << endl;
+    char * tokens;
+    char delimiters[] = " ";
+
+    //conver the command from a C++ string to a c-style string
+    char *command_cstring = &command[0];
+    tokens = strtok(command_cstring,delimiters);
+
+    //Print out all of the tokens
+    while (tokens)
+    {
+        cout << tokens << endl;
+        tokens = strtok(NULL,delimiters);
+    }
 }
