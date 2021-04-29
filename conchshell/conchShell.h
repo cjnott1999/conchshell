@@ -21,6 +21,9 @@ public:
     //Run the Loop
     void loop();
 
+    void WaitFor(int pid);
+    void execute(string c);
+
     //Parse and execute the command
     void parse_and_execute(string c);
 
@@ -48,9 +51,43 @@ void conchShell::parse_and_execute(string c){
 
     //Print out all of the tokens
     while (tokens)
-    {
-        cout << tokens << endl;
+    {   
+        if (!strcmp(tokens, "ls")){
+            execute(tokens);
+        }
         tokens = strtok(NULL,delimiters);
+    }
+}
+
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+* WaitFor(pid)                                                  *
+* Waits for foreground processes...based on Rochkind's waitfor  *
+*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+void conchShell::WaitFor(int pid){
+  int gotpid, status;
+
+  while( (gotpid = wait(&status)) != pid)
+    cout << "Process [" << gotpid << "] Finished..." << endl;
+}
+
+void conchShell::execute(string c){
+    int id = fork();
+    if(id == 0){ // we are in the child process
+        char *cmd = "ls";
+        char *argv[2];
+        argv[0] = "ls";
+        argv[1] = NULL;
+        execvp(cmd, argv);
+    }
+    else{
+        // Here we are in the parent
+        WaitFor(id);
+    }
+
+    if(c.compare("exit") == 0){
+        exit(0);
     }
 }
 
