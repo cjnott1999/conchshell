@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <filesystem>
 
+#include "lexer.h"
+#include "tokens.h"
+
 using namespace std;
 
 class conchShell {
@@ -42,21 +45,19 @@ void conchShell::loop(){
 
 //Parse the tokens as they come in and execute commands as necessary
 void conchShell::parse_and_execute(string c){
-    char * tokens;
+
     char delimiters[] = " ";
 
     //convert the command from a C++ string to a c-style string
     char *command_cstring = &command[0];
-    tokens = strtok(command_cstring,delimiters);
 
-    //Print out all of the tokens
-    while (tokens)
-    {   
-        if (!strcmp(tokens, "ls")){
-            execute(tokens);
-        }
-        tokens = strtok(NULL,delimiters);
+    Token *tokens= lex(command_cstring);
+    while(tokens!=NULL)
+    {
+      cout<<tokens->identifier<< " " << tokens->type<< "\n";
+      tokens=tokens->next;
     }
+
 }
 
 
@@ -75,11 +76,12 @@ void conchShell::WaitFor(int pid){
 void conchShell::execute(string c){
     int id = fork();
     if(id == 0){ // we are in the child process
-        char *cmd = "ls";
-        char *argv[2];
-        argv[0] = "ls";
-        argv[1] = NULL;
-        execvp(cmd, argv);
+        // char *cmd = "ls";
+        // char *argv[3];
+        // argv[0] = "ls";
+        // argv[1] = "-l";
+        // argv[2] = NULL;
+        // execvp(cmd, argv);
     }
     else{
         // Here we are in the parent
