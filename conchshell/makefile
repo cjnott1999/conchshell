@@ -3,3 +3,6 @@ compiler: lex.yy.c
 
 lex.yy.c: lexer.l
 	lex lexer.l
+
+clean:
+	rm lex.yy.c shell

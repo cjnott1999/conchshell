@@ -4,6 +4,9 @@
 
 //Define the Token Type and the Valid tokens
 typedef enum e_token_type {
+    TOKEN_CD,
+    TOKEN_HISTORY,
+    TOKEN_EXIT,
     TOKEN_WORD,
     TOKEN_FLAG,
     TOKEN_FILE_OUTPUT,
