@@ -5,11 +5,13 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <filesystem>
 #include <vector>
 
 #include "lexer.h"
 #include "tokens.h"
+
 
 
 using namespace std;
@@ -30,7 +32,8 @@ public:
     //Redirect conditions
     int outputRedirect = 0;
     int inputRedirect = 0;
-    char *redirectFileName;
+    char *inputRedirectFileName;
+    char *outputRedirectFileName;
 
     //Run the Loop
     void loop();
@@ -80,8 +83,6 @@ void conchShell::loop(){
         if (command.empty()){
             continue;
         }
-
-
         lexing(command);
     }
 }
@@ -151,56 +152,48 @@ void conchShell::parse(Token *tokens){
     int fileInput = 0;
 
     vector<string>  inputTokens;
-    //While were are going through our tokens, keep track of the address of the previous token
-    Token *previous;
-    //This will store the location of the redirect, if it is present
-    Token *locationOfRedirect;
     while(tokens!=NULL)
     {
         //Check is file output redirect is present
         if (tokens->type == TOKEN_FILE_OUTPUT){
             fileOutput = outputTracker;
+            
             outputRedirect = 1;
         }
         //Check is file input redirect is present
         if (tokens->type==TOKEN_FILE_INPUT){
-            locationOfRedirect = previous;
             fileInput = inputTracker;
             inputRedirect = 1;
         }
         //Push the indentifer, the string itself, into the vector
         inputTokens.push_back(tokens->identifier);
-        previous = tokens;
         tokens=tokens->next;
         //Increment
         outputTracker++;
         inputTracker++;
     }
 
+    
     int num_tokens;
-    if (fileOutput == 0 && fileInput == 0){
+
+    if (inputRedirect == 0 && outputRedirect == 0){
         num_tokens = inputTokens.size();
     }
-    else if (fileOutput == 1){
-        num_tokens = fileOutput;
-        redirectFileName = &inputTokens[fileOutput + 1][0];
-    }
-    else if (fileInput == 1){
+    else if (inputRedirect == 1 && outputRedirect == 1){
         num_tokens = fileInput;
-        //Find the name of the file to redirect to standard input
-        redirectFileName = &inputTokens[fileInput + 1][0];
-        char * stringifiedFile = &readFileIn(redirectFileName)[0];
-        //Lex the file as if it was on stadard input
-        Token *fileTokenslex = lex(stringifiedFile);
 
-        //Modify the linked list and stitch it back together as if it was one big command
-        locationOfRedirect->next = fileTokenslex;
-        
-        //Parse the preserved head, now modified
-        parse(head);
-        return;
+        inputRedirectFileName = &inputTokens[fileInput + 1][0];
+        outputRedirectFileName = &inputTokens[fileOutput + 1][0]; 
     }
-    
+    else if (outputRedirect == 1){
+        num_tokens = fileOutput;
+        outputRedirectFileName = &inputTokens[fileOutput + 1][0];
+    }
+    else if (inputRedirect == 1){
+        num_tokens = fileInput;
+        inputRedirectFileName = &inputTokens[fileInput + 1][0]; 
+    }
+
     char *cmd = &inputTokens[0][0];
     char *argv[num_tokens];
 
@@ -208,7 +201,7 @@ void conchShell::parse(Token *tokens){
             argv[i] = &inputTokens[i][0];
     }
 
-    //Termiate the argv for the execvp command
+    //Terminate the argv for the execvp command
     argv[num_tokens] = NULL;
     execute_sys_command(cmd,argv);
 
@@ -221,8 +214,10 @@ void conchShell::WaitFor(int pid){
 
 void conchShell::execute_sys_command(char *cmd, char *argv[]){
     //Pipe up
-    int pipefd[2];
-    pipe(pipefd);
+    int pipefdout[2];
+    int pipefdin[2];
+    pipe(pipefdout);
+    pipe(pipefdin);
     signal(SIGINT, SIG_IGN);
     //Fork stuff up
     int id = fork();
@@ -231,9 +226,16 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
         signal(SIGINT, SIG_DFL);
         if (outputRedirect){
             // we are in the child process
-            close(pipefd[0]); 
+            close(pipefdout[0]); 
             //Dup the pipe to stdout
-            dup2(pipefd[1], 1); 
+            dup2(pipefdout[1], 1); 
+        }
+        if (inputRedirect){
+            int fd_in = open(inputRedirectFileName, O_RDONLY);
+            close(0);
+            dup(fd_in);
+            close(fd_in);
+            
         }
         //Run the command through a system call
         execvp(cmd, argv);
@@ -242,11 +244,11 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
 
         if (outputRedirect){
             //Ofstream will redirect output to a file
-            ofstream out(redirectFileName);
+            ofstream out(outputRedirectFileName);
             //Close the write end of the pipe
-            close(pipefd[1]);
+            close(pipefdout[1]);
             //Open the read end of the pipe as a file
-            FILE *readP = fdopen(pipefd[0], "r");
+            FILE *readP = fdopen(pipefdout[0], "r");
             char c[1000];
             
             while (fgets(c,999,readP) != NULL){
@@ -254,11 +256,11 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
             }
 
             //Clean up and close
-            close(pipefd[0]);
+            close(pipefdout[0]);
             out.close();
         }
-        //Reset the file redirect
         outputRedirect = 0;
+        inputRedirect = 0;
         WaitFor(id);
     }
 
