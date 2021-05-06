@@ -5,9 +5,11 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdio.h>
+#include <string.h>
 #include <fcntl.h>
 #include <filesystem>
 #include <vector>
+#include <filesystem>
 
 #include "lexer.h"
 #include "tokens.h"
@@ -26,6 +28,11 @@ public:
     //Store the working command
     string command;
 
+
+    //Set up and destruction of that mf shell
+    void setUpShell();
+    void exitShell();
+    int breakOut = 1;
     //History conditions
     vector<string> history;
 
@@ -52,6 +59,9 @@ public:
     
 };
 
+
+
+
 string readFileIn(string filename) {
     ifstream file;
     file.open(filename);
@@ -62,6 +72,26 @@ string readFileIn(string filename) {
     }
     file.close();
     return stringedFile;
+}
+
+void conchShell::exitShell(){
+    ofstream out;
+    out.open(".history");
+    for(int i = 0; i < history.size(); i++){
+        out << history[i] << endl;
+    }
+
+}
+
+void conchShell::setUpShell(){
+    ifstream in;
+    in.open(".history");
+    string line;
+    while(getline(in, line)){
+        history.push_back(line);
+    }
+    in.close();
+
 }
 
 void conchShell::conch_cd(string directory){
@@ -75,7 +105,7 @@ void conchShell::conch_cd(string directory){
 
 //The execute loop, this will run indefinitely while the shell is running
 void conchShell::loop(){
-    while(true){
+    while(breakOut){
         cout << greeting;
         //Gets the entire line off of the command line
         getline(cin, command);
@@ -85,15 +115,23 @@ void conchShell::loop(){
         }
         lexing(command);
     }
+
+
+    
 }
 
 int conchShell::checkForBuiltIns(Token *tokens){
     //if the first token is exit, we gotta exit
+
     if (tokens->type == TOKEN_EXIT){
-        exit(0);
+        
+        breakOut = 0;
+        return 1;
     }
+
     //Check for the cd command, so we can change directory
-    else if (tokens->type == TOKEN_CD){
+    if (tokens->type == TOKEN_CD){
+        history.push_back(tokens->identifier);
         string directory = "~";
         if (tokens->next != NULL){
             tokens = tokens->next;
@@ -105,17 +143,31 @@ int conchShell::checkForBuiltIns(Token *tokens){
     }
     //Check for bang
     else if (tokens->type == TOKEN_BANG){
-        string historic_command = history[history.size() -2];
-        lexing(historic_command); 
+
+        char *bangString = (char *)malloc(strlen(tokens->identifier)+1);
+        memset(bangString, 0, strlen(tokens->identifier)+1);
+        strcpy(bangString, tokens->identifier);
+        memmove(bangString, bangString+1, strlen(bangString));
+
+        int back = atoi(bangString);
+        if (back == 0){
+            back = 1;
+        }
+        if (history.size() >= (1 + back)){
+            string historic_command = history[history.size() - (1 + back)];
+            lexing(historic_command);
+        } 
         return 0;    
     }
     
     //Check for listing history
     else if(tokens->type == TOKEN_HISTORY){
-        for(int i = 0; i < history.size() - 1; i++){
+        for(int i = 0; i < history.size(); i++){
             cout << history[i] << endl;
         }
+        history.push_back(tokens->identifier);
         return 1;
+        
     }
     else return 0;
 }
@@ -123,8 +175,7 @@ int conchShell::checkForBuiltIns(Token *tokens){
 //Parse the tokens as they come in and execute commands as necessary
 void conchShell::lexing(string command){
     
-    //Add the command to history
-    history.push_back(command);
+    
 
     //convert the command from a C++ string to a c-style string
     char *command_cstring = &command[0];
@@ -139,11 +190,12 @@ void conchShell::lexing(string command){
 
 void conchShell::parse(Token *tokens){
 
-    Token *head = tokens;
     //First we gotta check for builtins 
     if (checkForBuiltIns(tokens)){
         return;
     }
+    //Add the command to history
+    history.push_back(tokens->identifier);
 
 
     int outputTracker = 0;
@@ -225,7 +277,7 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
     if(id == 0){
         signal(SIGINT, SIG_DFL);
         if (outputRedirect){
-            // we are in the child process
+            // we do be in the child process doh
             close(pipefdout[0]); 
             //Dup the pipe to stdout
             dup2(pipefdout[1], 1); 
@@ -237,8 +289,11 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
             close(fd_in);
             
         }
-        //Run the command through a system call
-        execvp(cmd, argv);
+        //Run the command through a system call and check that the command exits
+        if (execvp(cmd, argv) == -1) {
+            exit(EXIT_FAILURE);
+        }
+    
     }
     else{
 
@@ -247,7 +302,7 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
             ofstream out(outputRedirectFileName);
             //Close the write end of the pipe
             close(pipefdout[1]);
-            //Open the read end of the pipe as a file
+            //Open the read end of the pipe as a file and yeet
             FILE *readP = fdopen(pipefdout[0], "r");
             char c[1000];
             
