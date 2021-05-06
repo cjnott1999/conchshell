@@ -28,7 +28,8 @@ public:
     vector<string> history;
 
     //Redirect conditions
-    int redirect = 0;
+    int outputRedirect = 0;
+    int inputRedirect = 0;
     char *redirectFileName;
 
     //Run the Loop
@@ -36,7 +37,7 @@ public:
 
     //Shell builtins
     int checkForBuiltIns(Token *tokens);
-    void execute(Token *tokens);
+    void parse(Token *tokens);
     void conch_cd(string directory);
 
     //Functions to actually execute the system command
@@ -44,9 +45,21 @@ public:
     void execute_sys_command(char *cmd, char *argv[]);
 
     //Parse and execute the command
-    void parse(string c);
+    void lexing(string c);
     
 };
+
+string readFileIn(string filename) {
+    ifstream file;
+    file.open(filename);
+    string line;
+    string stringedFile = "";
+    while(getline(file, line)){
+        stringedFile = stringedFile + line;
+    }
+    file.close();
+    return stringedFile;
+}
 
 void conchShell::conch_cd(string directory){
     if (directory == "~"){
@@ -63,7 +76,7 @@ void conchShell::loop(){
         cout << greeting;
         //Gets the entire line off of the command line
         getline(cin, command);
-        parse(command);
+        lexing(command);
     }
 }
 
@@ -86,13 +99,13 @@ int conchShell::checkForBuiltIns(Token *tokens){
     //Check for bang
     else if (tokens->type == TOKEN_BANG){
         string historic_command = history[history.size() -2];
-        parse(historic_command); 
+        lexing(historic_command); 
         return 0;    
     }
     
     //Check for listing history
     else if(tokens->type == TOKEN_HISTORY){
-        for(int i = 0; i < history.size(); i++){
+        for(int i = 0; i < history.size() - 1; i++){
             cout << history[i] << endl;
         }
         return 1;
@@ -101,7 +114,7 @@ int conchShell::checkForBuiltIns(Token *tokens){
 }
 
 //Parse the tokens as they come in and execute commands as necessary
-void conchShell::parse(string command){
+void conchShell::lexing(string command){
     
     //Add the command to history
     history.push_back(command);
@@ -112,41 +125,74 @@ void conchShell::parse(string command){
     //Do some lexing
     Token *tokens= lex(command_cstring);
 
+    //If we aren't a builtin, we are a system command
+    parse(tokens);
+}
+
+
+void conchShell::parse(Token *tokens){
+
+    Token *head = tokens;
     //First we gotta check for builtins 
     if (checkForBuiltIns(tokens)){
         return;
     }
 
-    //If we aren't a builtin, we are a system command
-    execute(tokens);
-}
 
-
-void conchShell::execute(Token *tokens){
-    int tracker = 0;
+    int outputTracker = 0;
+    int inputTracker = 0;
     int fileOutput = 0;
+    int fileInput = 0;
 
     vector<string>  inputTokens;
+    //While were are going through our tokens, keep track of the address of the previous token
+    Token *previous;
+    //This will store the location of the redirect, if it is present
+    Token *locationOfRedirect;
     while(tokens!=NULL)
     {
-        //Check is file redirect is present
+        //Check is file output redirect is present
         if (tokens->type == TOKEN_FILE_OUTPUT){
-            fileOutput = tracker;
-            redirect = 1;
+            fileOutput = outputTracker;
+            outputRedirect = 1;
+        }
+        //Check is file input redirect is present
+        if (tokens->type==TOKEN_FILE_INPUT){
+            locationOfRedirect = previous;
+            fileInput = inputTracker;
+            inputRedirect = 1;
         }
         //Push the indentifer, the string itself, into the vector
         inputTokens.push_back(tokens->identifier);
+        previous = tokens;
         tokens=tokens->next;
-        tracker++;
+        //Increment
+        outputTracker++;
+        inputTracker++;
     }
 
     int num_tokens;
-    if (fileOutput == 0){
+    if (fileOutput == 0 && fileInput == 0){
         num_tokens = inputTokens.size();
     }
-    else{
+    else if (fileOutput == 1){
         num_tokens = fileOutput;
         redirectFileName = &inputTokens[fileOutput + 1][0];
+    }
+    else if (fileInput == 1){
+        num_tokens = fileInput;
+        //Find the name of the file to redirect to standard input
+        redirectFileName = &inputTokens[fileInput + 1][0];
+        char * stringifiedFile = &readFileIn(redirectFileName)[0];
+        //Lex the file as if it was on stadard input
+        Token *fileTokenslex = lex(stringifiedFile);
+
+        //Modify the linked list and stitch it back together as if it was one big command
+        locationOfRedirect->next = fileTokenslex;
+        
+        //Parse the preserved head, now modified
+        parse(head);
+        return;
     }
     
     char *cmd = &inputTokens[0][0];
@@ -176,7 +222,7 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
     int id = fork();
     
     if(id == 0){ 
-        if (redirect){
+        if (outputRedirect){
             // we are in the child process
             close(pipefd[0]); 
             //Dup the pipe to stdout
@@ -187,7 +233,7 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
     }
     else{
 
-        if (redirect){
+        if (outputRedirect){
             //Ofstream will redirect output to a file
             ofstream out(redirectFileName);
             //Close the write end of the pipe
@@ -205,7 +251,7 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
             out.close();
         }
         //Reset the file redirect
-        redirect = 0;
+        outputRedirect = 0;
         WaitFor(id);
     }
 

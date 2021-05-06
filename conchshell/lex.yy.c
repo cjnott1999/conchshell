@@ -371,18 +371,18 @@ struct yy_trans_info
 	};
 static yyconst flex_int16_t yy_accept[26] =
     {   0,
-        5,    5,   11,    9,    5,    1,    8,    5,    7,    6,
-        5,    5,    5,    5,    2,    5,    5,    5,    5,    4,
-        5,    5,    5,    3,    0
+        5,    5,   11,    9,    1,    1,    8,    5,    7,    6,
+        5,    5,    5,    5,    3,    5,    5,    5,    5,    2,
+        5,    5,    5,    4,    0
     } ;
 
 static yyconst flex_int32_t yy_ec[256] =
     {   0,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    2,
-        1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+        1,    1,    3,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    3,    4,    1,    1,    1,    1,    1,    1,    1,
-        1,    1,    1,    1,    5,    1,    1,    5,    5,    5,
+        1,    1,    1,    1,    5,    5,    1,    5,    5,    5,
         5,    5,    5,    5,    5,    5,    5,    1,    1,    6,
         1,    7,    1,    1,    5,    5,    5,    5,    5,    5,
         5,    5,    5,    5,    5,    5,    5,    5,    5,    5,
@@ -736,6 +736,7 @@ do_action:	/* This label is used only to access EOF actions. */
 			goto yy_find_action;
 
 case 1:
+/* rule 1 can match eol */
 YY_RULE_SETUP
 #line 11 "lexer.l"
 { }
@@ -743,17 +744,17 @@ YY_RULE_SETUP
 case 2:
 YY_RULE_SETUP
 #line 12 "lexer.l"
-{addTokenToBuffer(TOKEN_CD, yytext);}
+{addTokenToBuffer(TOKEN_EXIT, yytext);}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
 #line 13 "lexer.l"
-{addTokenToBuffer(TOKEN_HISTORY, yytext);}
+{addTokenToBuffer(TOKEN_CD, yytext);}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
 #line 14 "lexer.l"
-{addTokenToBuffer(TOKEN_EXIT, yytext);}
+{addTokenToBuffer(TOKEN_HISTORY, yytext);}
 	YY_BREAK
 case 5:
 /* rule 5 can match eol */
@@ -786,7 +787,7 @@ YY_RULE_SETUP
 #line 21 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 790 "lex.yy.c"
+#line 791 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 

@@ -8,11 +8,11 @@
 %}
 
 %%
-[ ]                         { }
+[ \r\n]                     { }
+exit                        {addTokenToBuffer(TOKEN_EXIT, yytext);}
 cd                          {addTokenToBuffer(TOKEN_CD, yytext);}
 history                     {addTokenToBuffer(TOKEN_HISTORY, yytext);}
-exit                        {addTokenToBuffer(TOKEN_EXIT, yytext);}
-[-a-zA-Z0-9\n\\]*            {addTokenToBuffer(TOKEN_WORD, yytext);}
+[-a-zA-Z0-9\.\n\\]*         {addTokenToBuffer(TOKEN_WORD, yytext);}
 \>                          {addTokenToBuffer(TOKEN_FILE_OUTPUT, yytext);}
 \<                          {addTokenToBuffer(TOKEN_FILE_INPUT, yytext);}
 !                           {addTokenToBuffer(TOKEN_BANG, yytext);}
