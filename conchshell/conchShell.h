@@ -35,17 +35,18 @@ public:
     void loop();
 
     //Shell builtins
+    int checkForBuiltIns(Token *tokens);
+    void execute(Token *tokens);
     void conch_cd(string directory);
 
     //Functions to actually execute the system command
     void WaitFor(int pid);
-    void execute(char *cmd, char *argv[]);
+    void execute_sys_command(char *cmd, char *argv[]);
 
     //Parse and execute the command
-    void parse_and_execute(string c);
+    void parse(string c);
     
 };
-
 
 void conchShell::conch_cd(string directory){
     if (directory == "~"){
@@ -54,8 +55,6 @@ void conchShell::conch_cd(string directory){
     else {
         chdir(directory.c_str());
     }
-  
-    
 }
 
 //The execute loop, this will run indefinitely while the shell is running
@@ -64,61 +63,70 @@ void conchShell::loop(){
         cout << greeting;
         //Gets the entire line off of the command line
         getline(cin, command);
-        parse_and_execute(command);
+        parse(command);
     }
 }
 
-
-//Parse the tokens as they come in and execute commands as necessary
-void conchShell::parse_and_execute(string c){
-    //convert the command from a C++ string to a c-style string
-    
-    char *command_cstring = &command[0];
-
-    //Do some lexing
-    Token *tokens= lex(command_cstring);
-    
-
-    //Now let us do some parsing 
-
-
-    vector<string>  inputTokens;
-
-    int tracker = 0;
-    int fileOutput = 0;
-
+int conchShell::checkForBuiltIns(Token *tokens){
     //if the first token is exit, we gotta exit
     if (tokens->type == TOKEN_EXIT){
         exit(0);
     }
-
-    if (tokens->type == TOKEN_CD){
+    //Check for the cd command, so we can change directory
+    else if (tokens->type == TOKEN_CD){
         string directory = "~";
         if (tokens->next != NULL){
             tokens = tokens->next;
             directory = tokens->identifier;
-
         }
 
         conch_cd(directory);
-        return;
+        return 1;
     }
-
     //Check for bang
-    if (tokens->type == TOKEN_BANG){
-        string historic_command = history[history.size()- 2];
-        char *historic_command_cstring = &historic_command[0];
-
-        tokens = lex(historic_command_cstring);
-            
+    else if (tokens->type == TOKEN_BANG){
+        string historic_command = history[history.size() -2];
+        parse(historic_command); 
+        return 0;    
     }
     
-    if(tokens->type == TOKEN_HISTORY){
+    //Check for listing history
+    else if(tokens->type == TOKEN_HISTORY){
         for(int i = 0; i < history.size(); i++){
             cout << history[i] << endl;
         }
+        return 1;
     }
+    else return 0;
+}
+
+//Parse the tokens as they come in and execute commands as necessary
+void conchShell::parse(string command){
     
+    //Add the command to history
+    history.push_back(command);
+
+    //convert the command from a C++ string to a c-style string
+    char *command_cstring = &command[0];
+
+    //Do some lexing
+    Token *tokens= lex(command_cstring);
+
+    //First we gotta check for builtins 
+    if (checkForBuiltIns(tokens)){
+        return;
+    }
+
+    //If we aren't a builtin, we are a system command
+    execute(tokens);
+}
+
+
+void conchShell::execute(Token *tokens){
+    int tracker = 0;
+    int fileOutput = 0;
+
+    vector<string>  inputTokens;
     while(tokens!=NULL)
     {
         //Check is file redirect is present
@@ -126,6 +134,7 @@ void conchShell::parse_and_execute(string c){
             fileOutput = tracker;
             redirect = 1;
         }
+        //Push the indentifer, the string itself, into the vector
         inputTokens.push_back(tokens->identifier);
         tokens=tokens->next;
         tracker++;
@@ -147,12 +156,9 @@ void conchShell::parse_and_execute(string c){
             argv[i] = &inputTokens[i][0];
     }
 
-
+    //Termiate the argv for the execvp command
     argv[num_tokens] = NULL;
-
-    //Add the command to history
-    history.push_back(command);
-    execute(cmd,argv);
+    execute_sys_command(cmd,argv);
 
 }
 
@@ -161,7 +167,7 @@ void conchShell::WaitFor(int pid){
   while( (gotpid = wait(&status)) != pid);
 }
 
-void conchShell::execute(char *cmd, char *argv[]){
+void conchShell::execute_sys_command(char *cmd, char *argv[]){
     //Pipe up
     int pipefd[2];
     pipe(pipefd);
@@ -182,7 +188,7 @@ void conchShell::execute(char *cmd, char *argv[]){
     else{
 
         if (redirect){
-            //Ofstram will redirect output to a file
+            //Ofstream will redirect output to a file
             ofstream out(redirectFileName);
             //Close the write end of the pipe
             close(pipefd[1]);
@@ -198,7 +204,6 @@ void conchShell::execute(char *cmd, char *argv[]){
             close(pipefd[0]);
             out.close();
         }
-
         //Reset the file redirect
         redirect = 0;
         WaitFor(id);
