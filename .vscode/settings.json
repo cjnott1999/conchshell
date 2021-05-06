@@ -1,6 +1,10 @@
 {
     "files.associations": {
-        "chrono": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "string": "cpp",
+        "filesystem": "cpp",
+        "iosfwd": "cpp",
+        "__locale": "cpp",
+        "ios": "cpp"
     }
 }
