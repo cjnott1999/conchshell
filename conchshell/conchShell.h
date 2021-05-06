@@ -76,6 +76,12 @@ void conchShell::loop(){
         cout << greeting;
         //Gets the entire line off of the command line
         getline(cin, command);
+        
+        if (command.empty()){
+            continue;
+        }
+
+
         lexing(command);
     }
 }
@@ -217,11 +223,12 @@ void conchShell::execute_sys_command(char *cmd, char *argv[]){
     //Pipe up
     int pipefd[2];
     pipe(pipefd);
-
+    signal(SIGINT, SIG_IGN);
     //Fork stuff up
     int id = fork();
     
-    if(id == 0){ 
+    if(id == 0){
+        signal(SIGINT, SIG_DFL);
         if (outputRedirect){
             // we are in the child process
             close(pipefd[0]); 

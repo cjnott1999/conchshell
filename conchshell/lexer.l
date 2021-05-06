@@ -8,7 +8,7 @@
 %}
 
 %%
-[ \r\n]                     { }
+[ \r\n\t]                   { }
 exit                        {addTokenToBuffer(TOKEN_EXIT, yytext);}
 cd                          {addTokenToBuffer(TOKEN_CD, yytext);}
 history                     {addTokenToBuffer(TOKEN_HISTORY, yytext);}
