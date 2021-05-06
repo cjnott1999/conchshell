@@ -5,6 +5,7 @@
         "filesystem": "cpp",
         "iosfwd": "cpp",
         "__locale": "cpp",
-        "ios": "cpp"
+        "ios": "cpp",
+        "iostream": "cpp"
     }
 }
